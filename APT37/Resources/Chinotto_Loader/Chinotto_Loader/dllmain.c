@@ -4,7 +4,6 @@
 
 __declspec(dllexport)BOOL GetProfileType(DWORD* flags) {
 
-    MessageBoxA(NULL, "dll test", "dll test", NULL);
 
     return TRUE;
 }
