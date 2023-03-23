@@ -1,0 +1,32 @@
+---
+# Example rule to send alerts to Elasticsearch
+name: proc_creation_win_mshta_http_HIGH
+type: any
+es_host: es-01
+es_port: 9200
+index: winlogbeat-*
+filter:
+- query:
+    bool:
+      must: []
+      filter:
+      - match_phrase:
+          event_id: '1'
+      - match_phrase:
+          image_path: mshta.exe
+      - bool:
+          should:
+          - match_phrase:
+              cmdline: http://
+          - match_phrase:
+              cmdline: https://
+          - match_phrase:
+              cmdline: ftp://
+          minimum_should_match: 1
+      should: []
+      must_not: []
+
+alert:
+- "debug"
+
+## Ref : https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_mshta_http.yml

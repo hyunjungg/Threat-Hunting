@@ -1,0 +1,32 @@
+---
+# Example rule to send alerts to Elasticsearch
+name: proc_creation_win_schtasks_creation_LOW
+type: any
+es_host: es-01
+es_port: 9200
+index: winlogbeat-*
+filter:
+- query:
+    bool:
+      must: []
+      filter:
+      - match_phrase:
+          event_id: '1'
+      - match_phrase:
+          image_path: schtasks.exe
+      - match_phrase:
+          cmdline: "/create"
+      should: []
+      must_not:
+      - bool:
+          should:
+          - match_phrase:
+              user: AUTHORI
+          - match_phrase:
+              user: AUTORI
+          minimum_should_match: 1
+
+alert:
+- "debug"
+
+## Ref : https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_schtasks_creation.yml

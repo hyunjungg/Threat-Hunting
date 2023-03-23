@@ -1,0 +1,53 @@
+---
+name: proc_creation_win_office_susp_child_HIGH
+type: any
+es_host: es-01
+es_port: 9200
+index: winlogbeat-*
+filter:
+- query:
+    bool:
+      filter:
+      - match_phrase:
+          event_id: '1'
+      - bool:
+          should:
+          - match_phrase:
+              parent_image_path: "\\EXCEL.EXE"
+          - match_phrase:
+              parent_image_path: "\\WINWORD.EXE"
+          - match_phrase:
+              parent_image_path: "\\POWERPNT.EXE"
+          minimum_should_match: 1
+      - bool:
+          should:
+          - match_phrase:
+              image_path: bitsadmin.exe
+          - match_phrase:
+              image_path: msdt.exe
+          - match_phrase:
+              image_path: cmd.exe
+          - match_phrase:
+              image_path: cscript.exe
+          - match_phrase:
+              image_path: curl.exe
+          - match_phrase:
+              image_path: HH.exe
+          - match_phrase:
+              image_path: MSHTA.EXE
+          - match_phrase:
+              image_path: msiexec.exe
+          - match_phrase:
+              image_path: Powershell.EXE
+          - match_phrase:
+              image_path: schtasks.exe
+          - match_phrase:
+              image_path: RUNDLL32.exe
+          minimum_should_match: 1
+      should: []
+      must_not: []
+
+alert:
+- "debug"
+## ref : https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_office_susp_child_processes.yml
+## Verified

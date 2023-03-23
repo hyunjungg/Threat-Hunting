@@ -1,0 +1,73 @@
+---
+# Example rule to send alerts to Elasticsearch
+name: image_load_side_load_from_non_system_location_HIGH
+type: any
+es_host: es-01
+es_port: 9200
+index: winlogbeat-*
+filter:
+- query:
+    bool:
+      must: []
+      filter:
+      - match_phrase:
+          event_id: '7'
+      - bool:
+          should:
+          - match_phrase:
+              image_loaded: shfolder.dll
+          - match_phrase:
+              image_loaded: userenv.dll
+          - match_phrase:
+              image_loaded: atl.dll
+          - match_phrase:
+              image_loaded: audioses.dll
+          - match_phrase:
+              image_loaded: authz.dll
+          - match_phrase:
+              image_loaded: avrt.dll
+          - match_phrase:
+              image_loaded: authfwcfg.dll
+          - match_phrase:
+              image_loaded: adsldpc.dll
+          - match_phrase:
+              image_loaded: bcd.dll
+          - match_phrase:
+              image_loaded: cldapi.dll
+          - match_phrase:
+              image_loaded: clipc.dll
+          - match_phrase:
+              image_loaded: colouri.dll
+          - match_phrase:
+              image_loaded: connect.dll
+          - match_phrase:
+              image_loaded: cscobj.dll
+          - match_phrase:
+              image_loaded: d2d1.dll
+          minimum_should_match: 1
+      should: []
+      must_not:
+      - bool:
+          should:
+          - match_phrase:
+              image_loaded: C:\Program Files\WindowsApps\DellInc.DellSupportAssistforPCs
+          - match_phrase:
+              image_loaded: C:\Program Files\Common Files\microsoft shared\ClickToRun\AppVPolicy.dll
+          - match_phrase:
+              image_loaded: C:\Packages\Plugins\Microsoft.GuestConfiguration.ConfigurationforWindows\
+          - match_phrase:
+              image_loaded: C:\Windows\System32\
+          - match_phrase:
+              image_loaded: C:\Windows\SysWOW64\
+          - match_phrase:
+              image_loaded: C:\Windows\WinSxS\
+          - match_phrase:
+              image_loaded: C:\Windows\SoftwareDistribution\
+          - match_phrase:
+              image_loaded: C:\Windows\SystemTemp\
+          minimum_should_match: 1
+
+alert:
+- "debug"
+
+## Ref : https://github.com/SigmaHQ/sigma/blob/master/rules/windows/image_load/image_load_side_load_from_non_system_location.yml

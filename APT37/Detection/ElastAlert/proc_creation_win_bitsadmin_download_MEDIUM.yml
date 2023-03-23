@@ -1,0 +1,34 @@
+---
+# Example rule to send alerts to Elasticsearch
+name: proc_creation_win_bitsadmin_download_MEDIUM
+type: any
+es_host: es-01
+es_port: 9200
+index: winlogbeat-*
+filter:
+- query:
+    bool:
+      must: []
+      filter:
+      - match_phrase:
+          event_id: '1'
+      - match_phrase:
+          image_path: bitsadmin.exe
+      - bool:
+          should:
+          - match_phrase:
+              cmdline: "/transfer"
+          - match_phrase:
+              cmdline: "/create"
+          - match_phrase:
+              cmdline: "/addfile"
+          minimum_should_match: 1
+      - match_phrase:
+          cmdline: http
+      should: []
+      must_not: []
+
+alert:
+- "debug"
+
+## Ref : http://localhost:5601/app/discover#/?_g=(filters:!(),refreshInterval:(pause:!f,value:30000),time:(from:now-15d,to:now))&_a=(columns:!(image_path),filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'0ffa5db0-c646-11ed-8795-5bceef783175',key:event_id,negate:!f,params:(query:'1'),type:phrase),query:(match_phrase:(event_id:'1'))),('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'0ffa5db0-c646-11ed-8795-5bceef783175',key:image_path,negate:!f,params:(query:bitsadmin.exe),type:phrase),query:(match_phrase:(image_path:bitsadmin.exe))),('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'0ffa5db0-c646-11ed-8795-5bceef783175',key:cmdline,negate:!f,params:!(%2Ftransfer,%2Fcreate,%2Faddfile),type:phrases),query:(bool:(minimum_should_match:1,should:!((match_phrase:(cmdline:%2Ftransfer)),(match_phrase:(cmdline:%2Fcreate)),(match_phrase:(cmdline:%2Faddfile)))))),('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'0ffa5db0-c646-11ed-8795-5bceef783175',key:cmdline,negate:!f,params:(query:http),type:phrase),query:(match_phrase:(cmdline:http)))),index:'0ffa5db0-c646-11ed-8795-5bceef783175',interval:auto,query:(language:kuery,query:''),sort:!(!('@timestamp',desc)))
